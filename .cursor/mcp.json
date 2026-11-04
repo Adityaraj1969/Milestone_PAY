@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "paypal-apimatic-context": {
+      "command": "npx",
+      "args": ["-y", "context-plugins", "serve", "paypal"],
+      "env": {
+        "PAYPAL_ENVIRONMENT": "sandbox"
+      }
+    },
+    "paypal-agent-toolkit": {
+      "command": "npx",
+      "args": ["-y", "@paypal/agent-toolkit/mcp"],
+      "env": {
+        "PAYPAL_CLIENT_ID": "${PAYPAL_CLIENT_ID}",
+        "PAYPAL_CLIENT_SECRET": "${PAYPAL_CLIENT_SECRET}",
+        "PAYPAL_ENVIRONMENT": "sandbox"
+      }
+    }
+  }
+}

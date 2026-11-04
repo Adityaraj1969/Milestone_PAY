@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "generatedBy": "npx context-plugins install paypal",
+  "provider": "APIMatic",
+  "plugins": {
+    "paypal": {
+      "id": "paypal",
+      "title": "PayPal REST API Context Plugin (APIMatic Verified)",
+      "description": "Process global payments, invoicing, orders v2, payouts v1, and webhook signature verification with PayPal.",
+      "openApiVersion": "3.0.3",
+      "sandboxBaseUrl": "https://api-m.sandbox.paypal.com",
+      "liveBaseUrl": "https://api-m.paypal.com",
+      "modules": [
+        {
+          "name": "oauth2",
+          "endpoint": "POST /v1/oauth2/token",
+          "authType": "Basic"
+        },
+        {
+          "name": "orders_v2",
+          "endpoints": [
+            "POST /v2/checkout/orders",
+            "POST /v2/checkout/orders/{id}/capture",
+            "GET /v2/checkout/orders/{id}"
+          ]
+        },
+        {
+          "name": "invoicing_v2",
+          "endpoints": [
+            "POST /v2/invoicing/invoices",
+            "POST /v2/invoicing/invoices/{invoice_id}/send"
+          ]
+        },
+        {
+          "name": "payouts_v1",
+          "endpoints": [
+            "POST /v1/payments/payouts",
+            "GET /v1/payments/payouts/{payout_batch_id}"
+          ]
+        },
+        {
+          "name": "webhooks_v1",
+          "endpoints": [
+            "POST /v1/notifications/verify-webhook-signature"
+          ],
+          "requiredHeaders": [
+            "paypal-transmission-id",
+            "paypal-transmission-time",
+            "paypal-transmission-sig",
+            "paypal-cert-url",
+            "paypal-auth-algo"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MilestonePay — Autonomous Escrow & Payment-Aware Gantt Command Center</title>
+    <meta name="description" content="Payment-aware critical path scheduler and autonomous GitHub PR code-to-payout escrow command center powered by PayPal Sandbox, Gemini AI, Bryntum Gantt, and AG Grid." />
+    <meta property="og:title" content="MilestonePay — Autonomous Escrow & Payment-Aware Gantt Command Center" />
+    <meta property="og:description" content="Payment-aware critical path scheduler and autonomous GitHub PR code-to-payout escrow command center powered by PayPal Sandbox, Gemini AI, Bryntum Gantt, and AG Grid." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        if (window.__agGridTrialFilterInstalled) return;
+        window.__agGridTrialFilterInstalled = true;
+        var origError = console.error.bind(console);
+        console.error = function () {
+          var firstArg = arguments.length > 0 ? String(arguments[0]) : '';
+          if (
+            firstArg.indexOf('AG Grid Enterprise License') !== -1 ||
+            firstArg.indexOf('License Key Not Found') !== -1 ||
+            firstArg.indexOf('All AG Grid Enterprise features are unlocked') !== -1 ||
+            firstArg.indexOf('info@ag-grid.com') !== -1 ||
+            firstArg.indexOf('Error #239') !== -1 ||
+            /^\*{10,}/.test(firstArg.trim())
+          ) {
+            return;
+          }
+          return origError.apply(console, arguments);
+        };
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-blue-500/30">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

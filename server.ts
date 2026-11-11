@@ -129,7 +129,12 @@ async function startServer() {
     }
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    process.env.RENDER === 'true' ||
+    process.argv.includes('--production');
+
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },

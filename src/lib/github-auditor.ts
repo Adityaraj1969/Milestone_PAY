@@ -291,7 +291,7 @@ export async function auditPullRequestWithGemini(params: {
         'CRITICAL FAIL (CWE-798 & CWE-290): Hardcoded REDIS_MASTER_TOKEN secret detected on line 4; unvalidated X-Forwarded-For header allows trivial IP spoofing to bypass rate limits; missing Retry-After HTTP 429 header.',
       summary:
         'Payout BLOCKED by Financial Escrow Guardrail. Code audit scored 62/100 (minimum required: 90/100). Hardcoded production credential and spoofable IP rate-limit bypass must be remediated before $400.00 escrow bounty can be released.',
-      evaluatedBy: hasRealGeminiApiKey() ? 'gemini-3.8-flash (Live Security Gate)' : 'gemini-3.8-flash (Simulated Security Gate)',
+      evaluatedBy: hasRealGeminiApiKey() ? 'gemini-2.5-flash (Live Security Gate)' : 'gemini-2.5-flash (Simulated Security Gate)',
       evaluatedAt: nowIso,
       isLiveGemini: hasRealGeminiApiKey(),
       mode: hasRealGeminiApiKey() ? 'LIVE_GEMINI_API' : 'SIMULATED_FALLBACK',
@@ -302,9 +302,8 @@ export async function auditPullRequestWithGemini(params: {
   if (hasRealGeminiApiKey()) {
     const candidateModels = [
       'gemini-2.5-flash',
-      'gemini-1.5-flash',
-      'gemini-2.0-flash',
-      'gemini-3.8-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro',
     ];
     const apiKey = cleanKey(process.env.GEMINI_API_KEY);
 
@@ -406,7 +405,12 @@ Provide a strict, objective code audit evaluation. If the code cleanly implement
         }
       } catch (err) {
         console.warn(`Gemini live audit notice on model ${modelName}:`, err);
-        // Automatically try fallback models if a model is unavailable or rate limited
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const is503 = errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand');
+        if (modelName === 'gemini-2.5-flash' || is503) {
+          // 1500ms retry delay if gemini-2.5-flash returns 503
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
         continue;
       }
     }
@@ -420,7 +424,7 @@ Provide a strict, objective code audit evaluation. If the code cleanly implement
       'PASS (OWASP API4:2023): Token bucket refill math prevents integer overflow; safe IP resolution avoids X-Forwarded-For spoofing; zero hardcoded secrets.',
     summary:
       'Verified token bucket rate-limiting middleware in src/middleware/rateLimiter.ts. Accurately computes token refill deltas, enforces HTTP 429 with standard Retry-After and X-RateLimit-* headers, and satisfies all milestone acceptance criteria.',
-    evaluatedBy: 'gemini-3.8-flash (Simulated Evaluation)',
+    evaluatedBy: 'gemini-2.5-flash (Simulated Evaluation)',
     evaluatedAt: nowIso,
     isLiveGemini: false,
     mode: 'SIMULATED_FALLBACK',

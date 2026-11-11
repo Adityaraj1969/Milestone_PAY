@@ -133,28 +133,30 @@ export function hasRealPayPalCredentials(): boolean {
   );
 }
 
+export const RELEVANT_ESCROW_TOOLS = [
+  'create_invoice',
+  'send_invoice',
+  'create_order',
+  'get_order',
+  'list_invoices',
+];
+
 /**
  * Instantiates the official @paypal/agent-toolkit SDK for Agentic Commerce
  * Uses @paypal/agent-toolkit/openai which bundles zod-to-json-schema without requiring external 'ai' peer packages.
+ * Trims returned tool names strictly to the 5 relevant escrow tools so logs and JSON payloads stay concise.
  */
 export function createPayPalAgentToolkitInstance(): {
   toolkit: PayPalAgentToolkit | null;
   enabledTools: string[];
   isConfigured: boolean;
 } {
-  const defaultEnabledTools = [
-    'create_invoice',
-    'send_invoice',
-    'create_order',
-    'capture_order',
-    'list_invoices',
-    'create_payout',
-  ];
+  const enabledTools = [...RELEVANT_ESCROW_TOOLS];
 
   if (!hasRealPayPalCredentials()) {
     return {
       toolkit: null,
-      enabledTools: defaultEnabledTools,
+      enabledTools,
       isConfigured: false,
     };
   }
@@ -180,52 +182,21 @@ export function createPayPalAgentToolkitInstance(): {
           .filter((name): name is string => Boolean(name))
       : Object.keys(rawTools || {});
 
-    // Filter and prioritize the tools relevant to MilestonePay's architecture
-    // Avoid displaying unrelated subscription tools like create_recurring_series
-    const priorityKeywords = ['invoice', 'order', 'payout', 'capture', 'dispute'];
-    const excludedKeywords = ['recurring', 'series', 'subscription', 'billing_agreement'];
-
-    const prioritized = extractedToolNames.filter(
-      (name) =>
-        priorityKeywords.some((k) => name.toLowerCase().includes(k)) &&
-        !excludedKeywords.some((k) => name.toLowerCase().includes(k))
+    const filteredEscrowTools = extractedToolNames.filter((name) =>
+      RELEVANT_ESCROW_TOOLS.includes(name)
     );
-
-    const preferredOrder = [
-      'create_invoice',
-      'send_invoice',
-      'create_order',
-      'capture_order',
-      'list_invoices',
-      'create_payout',
-      'invoices.create',
-      'invoices.send',
-      'orders.create',
-      'orders.capture',
-      'payouts.create',
-    ];
-
-    prioritized.sort((a, b) => {
-      const idxA = preferredOrder.indexOf(a);
-      const idxB = preferredOrder.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.localeCompare(b);
-    });
-
-    const finalTools = prioritized.length > 0 ? prioritized : defaultEnabledTools;
 
     return {
       toolkit,
-      enabledTools: finalTools,
+      enabledTools:
+        filteredEscrowTools.length > 0 ? filteredEscrowTools : enabledTools,
       isConfigured: true,
     };
   } catch (err) {
     console.warn('@paypal/agent-toolkit initialization notice:', err);
     return {
       toolkit: null,
-      enabledTools: defaultEnabledTools,
+      enabledTools,
       isConfigured: false,
     };
   }

@@ -113,6 +113,7 @@ export const BryntumGanttPanel: React.FC = () => {
     setSelectedTaskId,
     isDepositLate,
     runLiveGitHubPrAudit,
+    openLiveReceiptModal,
     isSimulating,
   } = useProjectStore();
 
@@ -408,18 +409,38 @@ export const BryntumGanttPanel: React.FC = () => {
                       >
                         {style.statusLabel}
                       </span>
-                      {!task.isClientDepositPhase && task.escrowStatus !== 'PAYOUT_SETTLED' && (
+                      {task.isClientDepositPhase || task.id === 'TASK-1' ? (
                         <button
                           type="button"
-                          disabled={isSimulating}
                           onClick={(e) => {
                             e.stopPropagation();
-                            runLiveGitHubPrAudit(task.id);
+                            openLiveReceiptModal(task.paypalPayoutBatchId || 'ORDER-8XL94210A1');
                           }}
-                          className="px-2 py-0.5 rounded bg-slate-900/95 hover:bg-blue-600 text-[10px] font-medium text-slate-200 hover:text-white border border-slate-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                          className="px-2 py-0.5 rounded bg-emerald-950/90 hover:bg-emerald-600 text-[10px] font-medium text-emerald-300 hover:text-white border border-emerald-500/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                         >
-                          Audit PR #{task.prNumber}
+                          Verify Deposit
                         </button>
+                      ) : (
+                        task.escrowStatus !== 'PAYOUT_SETTLED' && (
+                          <button
+                            type="button"
+                            disabled={isSimulating}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              runLiveGitHubPrAudit(task.id);
+                            }}
+                            className="px-2 py-0.5 rounded bg-slate-900/95 hover:bg-blue-600 text-[10px] font-medium text-slate-200 hover:text-white border border-slate-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                          >
+                            Audit PR #
+                            {task.id === 'TASK-2'
+                              ? 1
+                              : task.id === 'TASK-3'
+                              ? 2
+                              : task.id === 'TASK-4'
+                              ? 3
+                              : task.prNumber}
+                          </button>
+                        )
                       )}
                     </div>
                   </div>

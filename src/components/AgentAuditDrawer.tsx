@@ -6,6 +6,7 @@ import {
   Check,
   GitPullRequest,
   ShieldCheck,
+  ShieldAlert,
   AlertCircle,
   Loader2,
   Send,
@@ -19,6 +20,7 @@ export const AgentAuditDrawer: React.FC = () => {
     selectedTaskId,
     reasoningSteps,
     latestPayoutReceipt,
+    latestBlockedAudit,
     isSimulating,
     isLivePayPalApi,
     apiModeLabel,
@@ -31,7 +33,9 @@ export const AgentAuditDrawer: React.FC = () => {
   const [copiedBatchId, setCopiedBatchId] = useState(false);
 
   const selectedTask =
-    tasks.find((t) => t.id === selectedTaskId) || tasks[1] || tasks[0];
+    tasks.find((t) => t.id === selectedTaskId && !t.isClientDepositPhase && t.id !== 'TASK-1') ||
+    tasks.find((t) => t.id === 'TASK-2') ||
+    tasks[1];
 
   const handleCopyBatchId = (batchId: string) => {
     navigator.clipboard?.writeText(batchId);
@@ -110,64 +114,110 @@ export const AgentAuditDrawer: React.FC = () => {
         </div>
       </div>
 
-      {/* Live PayPal Sandbox Payout Receipt Card (Appears once payout settles) */}
-      {latestPayoutReceipt && (
-        <div className="p-4 border-b border-slate-800 bg-slate-950/90 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>PayPal Sandbox Payout Disbursed</span>
-            </span>
-            <span className="font-mono text-xs font-bold text-slate-100 tabular-nums">
-              ${latestPayoutReceipt.amount} {latestPayoutReceipt.currency}
+      {/* Top Status Banner: Either Crimson Guardrail Blocked Card (when most recent action blocked) OR Green Payout Disbursed Card */}
+      {latestBlockedAudit ? (
+        <div className="p-4 border-b border-red-900/60 bg-red-950/30 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-red-400 flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4 shrink-0" />
+              <span>Financial Escrow Guardrail: PAYOUT BLOCKED — Escrow Protected</span>
             </span>
           </div>
 
-          <div className="text-[11px] text-slate-300 space-y-1 font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+          <div className="text-[11px] text-slate-200 space-y-1 font-mono bg-slate-950/90 p-2.5 rounded-lg border border-red-800/50">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">payout_batch_id:</span>
-              <button
-                type="button"
-                onClick={() => handleCopyBatchId(latestPayoutReceipt.payoutBatchId)}
-                className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 cursor-pointer"
-                title="Copy PayPal Payout Batch ID"
-              >
-                <span>{latestPayoutReceipt.payoutBatchId}</span>
-                {copiedBatchId ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3 h-3" />
-                )}
-              </button>
+              <span className="text-slate-400">target_task:</span>
+              <span className="text-red-300 font-semibold">{latestBlockedAudit.taskId} ({latestBlockedAudit.taskName.slice(0, 24)}...)</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">receiver:</span>
-              <span className="text-slate-200 truncate max-w-[180px]">
-                {latestPayoutReceipt.receiverEmail}
+              <span className="text-slate-400">bounty_protected:</span>
+              <span className="text-slate-100 font-bold tabular-nums">
+                ${latestBlockedAudit.bountyProtected.toFixed(2)} USD (Held in Escrow)
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">gemini_score:</span>
-              <span className="text-emerald-400 font-semibold">
-                {latestPayoutReceipt.auditScore}/100 (PASSED)
+              <span className="text-red-400 font-semibold tabular-nums">
+                {latestBlockedAudit.auditScore}/100 (REJECTED &lt; {latestBlockedAudit.requiredScore})
               </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1 text-[11px]">
-            <span className="text-slate-400 font-mono text-[10px]">
-              {latestPayoutReceipt.mode}
-            </span>
-            <button
-              type="button"
-              onClick={() => openLiveReceiptModal(latestPayoutReceipt.payoutBatchId)}
-              className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline font-medium cursor-pointer"
-            >
-              <Receipt className="w-3 h-3" />
-              <span>Verify via PayPal API Modal</span>
-            </button>
-          </div>
+          {latestPayoutReceipt && (
+            <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400 border-t border-red-900/40">
+              <span className="font-mono truncate">
+                Earlier Settled: {latestPayoutReceipt.taskId} (${latestPayoutReceipt.amount})
+              </span>
+              <button
+                type="button"
+                onClick={() => openLiveReceiptModal(latestPayoutReceipt.payoutBatchId)}
+                className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline font-mono shrink-0 cursor-pointer"
+              >
+                <Receipt className="w-3 h-3" />
+                <span>Batch {latestPayoutReceipt.payoutBatchId}</span>
+              </button>
+            </div>
+          )}
         </div>
+      ) : (
+        latestPayoutReceipt && (
+          <div className="p-4 border-b border-slate-800 bg-slate-950/90 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span>PayPal Sandbox Payout Disbursed</span>
+              </span>
+              <span className="font-mono text-xs font-bold text-slate-100 tabular-nums">
+                ${latestPayoutReceipt.amount} {latestPayoutReceipt.currency}
+              </span>
+            </div>
+
+            <div className="text-[11px] text-slate-300 space-y-1 font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">payout_batch_id:</span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyBatchId(latestPayoutReceipt.payoutBatchId)}
+                  className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 cursor-pointer"
+                  title="Copy PayPal Payout Batch ID"
+                >
+                  <span>{latestPayoutReceipt.payoutBatchId}</span>
+                  {copiedBatchId ? (
+                    <Check className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">receiver:</span>
+                <span className="text-slate-200 truncate max-w-[180px]">
+                  {latestPayoutReceipt.receiverEmail}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">gemini_score:</span>
+                <span className="text-emerald-400 font-semibold">
+                  {latestPayoutReceipt.auditScore}/100 (PASSED)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 text-[11px]">
+              <span className="text-slate-400 font-mono text-[10px]">
+                {latestPayoutReceipt.mode}
+              </span>
+              <button
+                type="button"
+                onClick={() => openLiveReceiptModal(latestPayoutReceipt.payoutBatchId)}
+                className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline font-medium cursor-pointer"
+              >
+                <Receipt className="w-3 h-3" />
+                <span>Verify via PayPal API Modal</span>
+              </button>
+            </div>
+          </div>
+        )
       )}
 
       {/* Streaming Agent Reasoning Feed */}

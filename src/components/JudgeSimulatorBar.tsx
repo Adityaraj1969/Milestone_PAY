@@ -78,7 +78,13 @@ export const JudgeSimulatorBar: React.FC = () => {
         <button
           type="button"
           disabled={isSimulating}
-          onClick={() => runLiveGitHubPrAudit('TASK-2', undefined, false)}
+          onClick={() =>
+            runLiveGitHubPrAudit(
+              'TASK-2',
+              'https://github.com/express-rate-limit/express-rate-limit/pull/1',
+              false
+            )
+          }
           className="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/30 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
         >
           <GitPullRequest className="w-3.5 h-3.5 shrink-0" />
@@ -89,14 +95,14 @@ export const JudgeSimulatorBar: React.FC = () => {
         <button
           type="button"
           disabled={isSimulating}
-          onClick={() => simulateVulnerablePrAudit('TASK-2')}
+          onClick={() => simulateVulnerablePrAudit('TASK-3')}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
             activeScenario === 'PR_REJECTED'
-              ? 'bg-amber-950/90 border-amber-500/70 text-amber-200'
-              : 'bg-slate-800/90 hover:bg-amber-950/60 border-slate-700 hover:border-amber-500/50 text-slate-200'
+              ? 'bg-red-950/90 border-red-500/70 text-red-200'
+              : 'bg-slate-800/90 hover:bg-red-950/60 border-slate-700 hover:border-red-500/50 text-slate-200'
           }`}
         >
-          <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <ShieldAlert className="w-3.5 h-3.5 text-red-400 shrink-0" />
           <span>4. Simulate Vulnerable PR (Score 62/100 — Payout Blocked)</span>
         </button>
 

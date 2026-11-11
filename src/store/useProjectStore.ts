@@ -34,6 +34,19 @@ export interface PayoutReceiptRecord {
   mode: string;
 }
 
+export interface BlockedAuditRecord {
+  taskId: string;
+  taskName: string;
+  contractorName: string;
+  bountyProtected: number;
+  auditScore: number;
+  requiredScore: number;
+  prUrl: string;
+  securityViolation: string;
+  summary: string;
+  blockedAt: string;
+}
+
 const INITIAL_MILESTONE_TASKS: MilestoneTask[] = [
   {
     id: 'TASK-1',
@@ -52,8 +65,8 @@ const INITIAL_MILESTONE_TASKS: MilestoneTask[] = [
     depositAmount: 1500,
     escrowStatus: 'ESCROW_FUNDED',
     invoiceId: 'INV2-Z89A-4412-9012-3381',
-    githubPrUrl: 'https://github.com/milestonepay-org/core-api/pull/1',
-    prNumber: 1,
+    githubPrUrl: '',
+    prNumber: 0,
     acceptanceCriteria: [
       'Client $1,500.00 USD deposit captured via PayPal Orders v2 API',
       'Webhook event PAYMENT.CAPTURE.COMPLETED verified via APIMatic schema',
@@ -92,9 +105,9 @@ const INITIAL_MILESTONE_TASKS: MilestoneTask[] = [
   {
     id: 'TASK-2',
     phase: 'Phase 2: Security & Middleware',
-    name: 'Build Rate-Limiting Middleware & Redis Token Bucket',
+    name: 'Build Express Rate-Limiting Middleware & HTTP 429 Throttling',
     contractorName: 'Alex Rivera',
-    contractorEmail: 'contractor-dev@personal.example.com',
+    contractorEmail: 'arivera-dev@personal.example.com',
     contractorHandle: '@arivera-dev',
     startDate: '2026-11-06',
     baseStartDate: '2026-11-06',
@@ -107,9 +120,9 @@ const INITIAL_MILESTONE_TASKS: MilestoneTask[] = [
     githubPrUrl: 'https://github.com/express-rate-limit/express-rate-limit/pull/1',
     prNumber: 1,
     acceptanceCriteria: [
-      'Implement token bucket rate-limiting middleware with configurable capacity and refill rate',
-      'Return HTTP 429 Too Many Requests with standard Retry-After & X-RateLimit-* headers',
-      'Pass OWASP API4:2023 security inspection with zero hardcoded secrets or IP spoofing flaws',
+      'Configurable rate-limiting response options and HTTP 429 throttling handler',
+      'Automated mocha/supertest unit test assertions verifying rate-limit response behavior',
+      'OWASP API4:2023 & CWE-798 security compliance with zero hardcoded secrets',
     ],
     aiAuditScore: null,
     aiAuditPassed: null,
@@ -135,7 +148,7 @@ const INITIAL_MILESTONE_TASKS: MilestoneTask[] = [
     bountyAmount: 550,
     escrowStatus: 'ESCROW_FUNDED',
     invoiceId: 'INV2-Z89A-4412-9012-3381',
-    githubPrUrl: 'https://github.com/milestonepay-org/core-api/pull/2',
+    githubPrUrl: 'https://github.com/express-rate-limit/express-rate-limit/pull/2',
     prNumber: 2,
     acceptanceCriteria: [
       'Verify PayPal-Transmission-Sig asymmetric signature against /v1/notifications/verify-webhook-signature',
@@ -166,8 +179,8 @@ const INITIAL_MILESTONE_TASKS: MilestoneTask[] = [
     bountyAmount: 550,
     escrowStatus: 'ESCROW_FUNDED',
     invoiceId: 'INV2-Z89A-4412-9012-3381',
-    githubPrUrl: 'https://github.com/milestonepay-org/core-api/pull/3',
-    prNumber: 3,
+    githubPrUrl: 'https://github.com/express-rate-limit/express-rate-limit/pull/4',
+    prNumber: 4,
     acceptanceCriteria: [
       'Poll and reconcile PAYMENT.PAYOUTS-ITEM.SUCCEEDED events against ledger rows',
       'Generate immutable audit trail with sender_batch_id and transaction fees',
@@ -219,6 +232,7 @@ interface ProjectStoreState {
     | 'PR_REJECTED';
   reasoningSteps: AgentReasoningStep[];
   latestPayoutReceipt: PayoutReceiptRecord | null;
+  latestBlockedAudit: BlockedAuditRecord | null;
   statusFilter: 'ALL' | 'ESCROW_FUNDED' | 'UNPAID_LATE' | 'PAYOUT_SETTLED' | 'AUDIT_REJECTED';
   searchQuery: string;
 
@@ -286,6 +300,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   activeScenario: 'IDLE',
   reasoningSteps: INITIAL_REASONING_STEPS,
   latestPayoutReceipt: null,
+  latestBlockedAudit: null,
   statusFilter: 'ALL',
   searchQuery: '',
 
@@ -505,6 +520,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         isLivePayPalApi: state.isLivePayPalApi,
         apiModeLabel: state.isLivePayPalApi ? 'LIVE PAYPAL SANDBOX' : state.apiModeLabel,
         latestPayoutReceipt: null,
+        latestBlockedAudit: null,
         reasoningSteps: [step2, step1, ...state.reasoningSteps],
       };
     });
@@ -636,6 +652,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const prUrlToAudit = customPrUrl || task.githubPrUrl;
     const summaryBefore = calculateLedgerSummary(state.tasks);
 
+    // Hard-pin bounty to $550 for TASK-3 vulnerable audit test
+    const bountyToAudit =
+      targetTaskId === 'TASK-3' && simulateRejection ? 550 : task.bountyAmount;
+    const contractorEmailToPay =
+      targetTaskId === 'TASK-3' && simulateRejection
+        ? 'priya-security@personal.example.com'
+        : task.contractorEmail;
+
     set({
       isSimulating: true,
       activeScenario: simulateRejection ? 'PR_REJECTED' : 'PR_AUDIT',
@@ -653,8 +677,8 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           timestamp: nowTimeLabel(),
           stage: 'GITHUB_FETCH',
           title: simulateRejection
-            ? `Inspecting Vulnerable PR #99 Diff (Security Gate Test)...`
-            : `Fetching GitHub PR #${task.prNumber} Diff & Metadata...`,
+            ? `Inspecting Vulnerable PR #2 Diff (Security Gate Test)...`
+            : `Fetching GitHub PR #${task.prNumber || 1} Diff & Metadata...`,
           detail: `Requesting diff from ${prUrlToAudit} and invoking Gemini 2.5 Flash code auditor with @paypal/agent-toolkit bindings...`,
           status: 'running',
         },
@@ -671,8 +695,8 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           taskName: task.name,
           prUrl: prUrlToAudit,
           prNumber: task.prNumber,
-          bountyAmount: task.bountyAmount,
-          receiverEmail: task.contractorEmail,
+          bountyAmount: bountyToAudit,
+          receiverEmail: contractorEmailToPay,
           acceptanceCriteria: task.acceptanceCriteria,
           escrowBalance: summaryBefore.remainingEscrowBalance,
           alreadySettled: false,
@@ -777,11 +801,27 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
                 mode: payoutResult.mode,
               }
             : s.latestPayoutReceipt,
+          latestBlockedAudit: payoutResult
+            ? s.latestBlockedAudit
+            : {
+                taskId: task.id,
+                taskName: task.name,
+                contractorName: task.contractorName,
+                bountyProtected: bountyToAudit,
+                auditScore: auditReport.score,
+                requiredScore: 90,
+                prUrl: prUrlToAudit,
+                securityViolation: auditReport.securityCheck,
+                summary: auditReport.summary,
+                blockedAt: nowTimeLabel(),
+              },
           tasks: s.tasks.map((t) => {
             if (t.id !== task.id) return t;
             if (payoutResult) {
               return {
                 ...t,
+                bountyAmount: bountyToAudit,
+                contractorEmail: contractorEmailToPay,
                 percentDone: 100,
                 escrowStatus: 'PAYOUT_SETTLED',
                 aiAuditScore: auditReport.score,
@@ -796,7 +836,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
             }
             return {
               ...t,
-              percentDone: 65,
+              bountyAmount: bountyToAudit,
               escrowStatus: s.isDepositLate ? 'UNPAID_LATE' : 'AUDIT_REJECTED',
               aiAuditScore: auditReport.score,
               aiAuditPassed: false,
@@ -810,7 +850,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
                 task_id: task.id,
                 audit_score: auditReport.score,
                 required_score: 90,
-                bounty_protected_usd: task.bountyAmount.toFixed(2),
+                bounty_protected_usd: bountyToAudit.toFixed(2),
                 security_violation: auditReport.securityCheck,
                 timestamp: new Date().toISOString(),
               },
@@ -847,8 +887,13 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }
   },
 
-  simulateVulnerablePrAudit: async (targetTaskId?: string) => {
-    await get().runLiveGitHubPrAudit(targetTaskId || 'TASK-2', undefined, true);
+  // Button 4 ALWAYS hard-targets TASK-3 ($550 bounty) with real GitHub PR #2 so clicking Button 4 never overwrites TASK-2
+  simulateVulnerablePrAudit: async (_targetTaskId?: string) => {
+    await get().runLiveGitHubPrAudit(
+      'TASK-3',
+      'https://github.com/express-rate-limit/express-rate-limit/pull/2',
+      true
+    );
   },
 
   resetSandboxDemo: () =>
@@ -861,6 +906,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       activeScenario: 'IDLE',
       reasoningSteps: INITIAL_REASONING_STEPS,
       latestPayoutReceipt: null,
+      latestBlockedAudit: null,
       statusFilter: 'ALL',
       searchQuery: '',
       lookupModalOpen: false,

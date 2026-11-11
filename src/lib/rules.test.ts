@@ -155,9 +155,53 @@ test('PayPal Webhook Signature Verification rejects missing headers and accepts 
   });
   assert.equal(accepted.verified, true);
 
-  // @paypal/agent-toolkit configuration lists expected commerce tools
+  // @paypal/agent-toolkit configuration strictly returns the 5 escrow tools
   const toolkitInfo = createPayPalAgentToolkitInstance();
-  assert.equal(toolkitInfo.enabledTools.includes('payouts.create'), true);
-  assert.equal(toolkitInfo.enabledTools.includes('orders.capture'), true);
+  assert.deepEqual(toolkitInfo.enabledTools, [
+    'create_invoice',
+    'send_invoice',
+    'create_order',
+    'get_order',
+    'list_invoices',
+  ]);
+});
+
+test('Clean PR audit and Vulnerable PR fetch preserve LIVE_GEMINI_API and LIVE_GITHUB_REST_API', async () => {
+  const { fetchGitHubPullRequestDiff, auditPullRequestWithGemini, CLEAN_PR_ACCEPTANCE_CRITERIA } =
+    await import('./github-auditor');
+  const diffResult = await fetchGitHubPullRequestDiff(
+    'https://github.com/express-rate-limit/express-rate-limit/pull/1',
+    false
+  );
+  assert.equal(diffResult.owner, 'express-rate-limit');
+  assert.equal(diffResult.repo, 'express-rate-limit');
+
+  const vulnDiffResult = await fetchGitHubPullRequestDiff(
+    'https://github.com/express-rate-limit/express-rate-limit/pull/2',
+    true
+  );
+  assert.equal(vulnDiffResult.owner, 'express-rate-limit');
+  assert.equal(vulnDiffResult.prNumber, 2);
+  assert.equal(vulnDiffResult.diffText.includes('REDIS_MASTER_TOKEN'), true);
+
+  const report = await auditPullRequestWithGemini({
+    taskName: 'Build Express Rate-Limiting Middleware & HTTP 429 Throttling',
+    acceptanceCriteria: CLEAN_PR_ACCEPTANCE_CRITERIA,
+    diffResult,
+    simulateRejection: false,
+    bountyAmount: 400,
+  });
+
+  assert.equal(report.passed, true);
+  assert.equal(report.score >= 92, true);
+  assert.equal(report.summary.toLowerCase().includes('not met'), false);
+  assert.equal(report.summary.toLowerCase().includes('cannot be approved'), false);
+  assert.deepEqual(report.paypalAgentToolsBound, [
+    'create_invoice',
+    'send_invoice',
+    'create_order',
+    'get_order',
+    'list_invoices',
+  ]);
 });
 

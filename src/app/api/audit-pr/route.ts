@@ -19,9 +19,9 @@ export async function handleAuditPrRequest(body: Record<string, unknown>) {
     bountyAmount = 400,
     receiverEmail = 'contractor-dev@personal.example.com',
     acceptanceCriteria = [
-      'Implement token bucket rate-limiting middleware',
-      'Return HTTP 429 Too Many Requests with Retry-After header',
-      'Zero hardcoded secrets or header spoofing flaws',
+      'Configurable rate-limiting response options and HTTP 429 throttling handler',
+      'Automated mocha/supertest unit test assertions verifying rate-limit response behavior',
+      'OWASP API4:2023 & CWE-798 security compliance with zero hardcoded secrets',
     ],
     escrowBalance = 1500,
     alreadySettled = false,
@@ -42,6 +42,7 @@ export async function handleAuditPrRequest(body: Record<string, unknown>) {
       : [],
     diffResult,
     simulateRejection: Boolean(simulateRejection),
+    bountyAmount: Number(bountyAmount),
   });
 
   // 3. Evaluate Financial Escrow Guardrail (Score >= 90 && Escrow Balance >= Bounty)

@@ -99,18 +99,22 @@ const LedgerDetailCellRenderer: React.FC<ICellRendererParams<MilestoneTask>> = (
           <span className="font-semibold text-slate-200">
             AG Grid Enterprise Master/Detail — {task.id}: {task.name}
           </span>
-          <span className="text-slate-600" aria-hidden="true">
-            ·
-          </span>
-          <a
-            href={task.githubPrUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-blue-400 hover:underline font-mono text-[11px] inline-flex items-center gap-1"
-          >
-            <span>{task.githubPrUrl}</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          {!task.isClientDepositPhase && task.githubPrUrl && (
+            <>
+              <span className="text-slate-600" aria-hidden="true">
+                ·
+              </span>
+              <a
+                href={task.githubPrUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-400 hover:underline font-mono text-[11px] inline-flex items-center gap-1"
+              >
+                <span>{task.githubPrUrl}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
@@ -168,7 +172,13 @@ const LedgerDetailCellRenderer: React.FC<ICellRendererParams<MilestoneTask>> = (
             </div>
             <ul className="space-y-1.5 bg-slate-900/90 p-3 rounded-lg border border-slate-800">
               {(task.acceptanceCriteria || []).map((criterion, idx) => {
-                const met = (task.aiCriteriaMet || []).includes(criterion);
+                const met =
+                  task.aiAuditPassed === true ||
+                  (task.aiCriteriaMet || []).some(
+                    (c) =>
+                      c.toLowerCase().includes(criterion.toLowerCase()) ||
+                      criterion.toLowerCase().includes(c.toLowerCase())
+                  );
                 return (
                   <li
                     key={idx}
@@ -437,6 +447,15 @@ export const AgGridLedgerPanel: React.FC = () => {
               </div>
             );
           }
+          if (t.isClientDepositPhase || t.id === 'TASK-1') {
+            return (
+              <div className="flex items-center justify-end h-full">
+                <span className="font-mono text-emerald-400 text-[11px] font-semibold leading-none">
+                  DEPOSIT
+                </span>
+              </div>
+            );
+          }
           if (t.aiAuditScore !== null && t.aiAuditScore !== undefined) {
             return (
               <div className="flex items-center justify-end h-full">
@@ -504,6 +523,23 @@ export const AgGridLedgerPanel: React.FC = () => {
               </div>
             );
           }
+          if (t.isClientDepositPhase || t.id === 'TASK-1') {
+            return (
+              <div className="flex items-center justify-end h-full">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openLiveReceiptModal(t.paypalPayoutBatchId || 'ORDER-8XL94210A1');
+                  }}
+                  className="px-2.5 py-1.5 rounded-md bg-emerald-950/90 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 text-[11px] font-medium leading-none inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  <Receipt className="w-3 h-3 shrink-0" />
+                  <span>Verify Deposit</span>
+                </button>
+              </div>
+            );
+          }
           if (t.paypalPayoutBatchId) {
             return (
               <div className="flex items-center justify-end h-full">
@@ -521,6 +557,8 @@ export const AgGridLedgerPanel: React.FC = () => {
               </div>
             );
           }
+          const prButtonIndex =
+            t.id === 'TASK-2' ? 1 : t.id === 'TASK-3' ? 2 : t.id === 'TASK-4' ? 3 : t.prNumber;
           return (
             <div className="flex items-center justify-end h-full">
               <button
@@ -532,7 +570,7 @@ export const AgGridLedgerPanel: React.FC = () => {
                 }}
                 className="px-2.5 py-1.5 rounded-md bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white border border-slate-700 text-[11px] font-medium leading-none transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
-                Audit PR #{t.prNumber}
+                Audit PR #{prButtonIndex}
               </button>
             </div>
           );

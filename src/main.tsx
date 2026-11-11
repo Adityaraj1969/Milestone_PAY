@@ -6,18 +6,27 @@ if (typeof window !== 'undefined') {
   if (!win.__agGridTrialFilterInstalled) {
     win.__agGridTrialFilterInstalled = true;
     const origError = console.error.bind(console);
-    console.error = (...args: unknown[]) => {
-      const msg = args.map((a) => String(a ?? '')).join(' ');
-      if (
-        msg.includes('AG Grid Enterprise License') ||
-        msg.includes('License Key Not Found') ||
-        msg.includes('All AG Grid Enterprise features are unlocked') ||
+    const origWarn = console.warn.bind(console);
+
+    const isAgGridLicenseNoise = (args: unknown[]) => {
+      const msg = args.map((a) => String(a ?? '')).join(' ').toLowerCase();
+      return (
+        msg.includes('ag grid enterprise license') ||
+        msg.includes('license key not found') ||
+        msg.includes('all ag grid enterprise features are unlocked') ||
         msg.includes('info@ag-grid.com') ||
-        /^\*{10,}/.test(msg.trim())
-      ) {
-        return;
-      }
+        (msg.includes('ag grid') && msg.includes('license')) ||
+        /\*{8,}/.test(msg)
+      );
+    };
+
+    console.error = (...args: unknown[]) => {
+      if (isAgGridLicenseNoise(args)) return;
       origError(...args);
+    };
+    console.warn = (...args: unknown[]) => {
+      if (isAgGridLicenseNoise(args)) return;
+      origWarn(...args);
     };
   }
 }

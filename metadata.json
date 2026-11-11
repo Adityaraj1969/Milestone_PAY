@@ -1,6 +1,0 @@
-{
-  "name": "MilestonePay",
-  "description": "Payment-aware critical path scheduler and autonomous GitHub PR code-to-payout escrow command center powered by PayPal Sandbox, Gemini AI, Bryntum Gantt, and AG Grid.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

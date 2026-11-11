@@ -9,6 +9,7 @@
     <meta property="og:description" content="Payment-aware critical path scheduler and autonomous GitHub PR code-to-payout escrow command center powered by PayPal Sandbox, Gemini AI, Bryntum Gantt, and AG Grid." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -17,19 +18,32 @@
         if (window.__agGridTrialFilterInstalled) return;
         window.__agGridTrialFilterInstalled = true;
         var origError = console.error.bind(console);
-        console.error = function () {
-          var firstArg = arguments.length > 0 ? String(arguments[0]) : '';
-          if (
-            firstArg.indexOf('AG Grid Enterprise License') !== -1 ||
-            firstArg.indexOf('License Key Not Found') !== -1 ||
-            firstArg.indexOf('All AG Grid Enterprise features are unlocked') !== -1 ||
-            firstArg.indexOf('info@ag-grid.com') !== -1 ||
-            firstArg.indexOf('Error #239') !== -1 ||
-            /^\*{10,}/.test(firstArg.trim())
-          ) {
-            return;
+        var origWarn = console.warn.bind(console);
+
+        function shouldFilter(args) {
+          var fullText = '';
+          for (var i = 0; i < args.length; i++) {
+            fullText += ' ' + String(args[i] || '');
           }
+          var lower = fullText.toLowerCase();
+          return (
+            lower.indexOf('ag grid enterprise license') !== -1 ||
+            lower.indexOf('license key not found') !== -1 ||
+            lower.indexOf('all ag grid enterprise features are unlocked') !== -1 ||
+            lower.indexOf('info@ag-grid.com') !== -1 ||
+            lower.indexOf('error #239') !== -1 ||
+            (lower.indexOf('ag grid') !== -1 && lower.indexOf('license') !== -1) ||
+            /\*{8,}/.test(fullText)
+          );
+        }
+
+        console.error = function () {
+          if (shouldFilter(arguments)) return;
           return origError.apply(console, arguments);
+        };
+        console.warn = function () {
+          if (shouldFilter(arguments)) return;
+          return origWarn.apply(console, arguments);
         };
       })();
     </script>

@@ -70,7 +70,9 @@ export const PayPalLiveReceiptModal: React.FC = () => {
             <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-300">
               <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
               <span>
-                Querying GET /v1/payments/payouts/{lookupBatchId} on backend...
+                {lookupBatchId?.startsWith('ORDER-')
+                  ? `Querying GET /v2/checkout/orders/${lookupBatchId.replace('ORDER-', '')} on backend...`
+                  : `Querying GET /v1/payments/payouts/${lookupBatchId} on backend...`}
               </span>
             </div>
           ) : lookupResult ? (

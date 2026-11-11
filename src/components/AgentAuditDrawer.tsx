@@ -55,10 +55,12 @@ export const AgentAuditDrawer: React.FC = () => {
         </div>
         <span
           className={`font-mono text-[10px] font-semibold ${
-            isLivePayPalApi ? 'text-emerald-400' : 'text-amber-300'
+            isLivePayPalApi || apiModeLabel === 'LIVE PAYPAL SANDBOX'
+              ? 'text-emerald-400'
+              : 'text-amber-300'
           }`}
         >
-          [MODE: {apiModeLabel}]
+          [MODE: {isLivePayPalApi || apiModeLabel === 'LIVE PAYPAL SANDBOX' ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK'}]
         </span>
       </div>
 

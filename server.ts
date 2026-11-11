@@ -49,6 +49,7 @@ async function startServer() {
         isLivePayPal,
         isLiveGemini,
         paypalMode: tokenInfo.mode,
+        executionMode: isLivePayPal ? 'LIVE_PAYPAL_SANDBOX' : 'SIMULATED_FALLBACK',
         fallbackReason: tokenInfo.fallbackReason || null,
         agentToolkitTools: toolkitInfo.enabledTools,
         appId: tokenInfo.app_id,
@@ -58,6 +59,28 @@ async function startServer() {
       res.status(500).json({
         status: 'error',
         message: err instanceof Error ? err.message : 'Health check failed',
+      });
+    }
+  });
+
+  // PayPal Live Credentials Status Endpoint
+  app.get('/api/paypal/status', async (_req, res) => {
+    try {
+      const tokenInfo = await getPayPalAccessToken();
+      const isLivePayPal = hasRealPayPalCredentials() && tokenInfo.isLiveApi;
+      res.json({
+        configured: hasRealPayPalCredentials(),
+        isLivePayPal,
+        mode: tokenInfo.mode,
+        executionMode: isLivePayPal ? 'LIVE_PAYPAL_SANDBOX' : 'SIMULATED_FALLBACK',
+        appId: tokenInfo.app_id,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      res.status(500).json({
+        configured: false,
+        isLivePayPal: false,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   });

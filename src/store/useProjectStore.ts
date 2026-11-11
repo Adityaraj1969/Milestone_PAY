@@ -309,23 +309,69 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
   fetchApiHealthStatus: async () => {
     try {
-      const res = await fetch('/api/health');
-      if (res.ok) {
-        const data = await res.json();
-        set({
-          isLivePayPalApi: Boolean(data.isLivePayPal),
-          isLiveGeminiApi: Boolean(data.isLiveGemini),
-          apiModeLabel: data.isLivePayPal
+      let livePayPalDetected = false;
+      let liveGeminiDetected = false;
+      let tools = [
+        'invoices.create',
+        'orders.capture',
+        'payouts.create',
+      ];
+      let fallbackReason: string | null = null;
+
+      try {
+        const statusRes = await fetch('/api/paypal/status');
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (
+            statusData.isLivePayPal ||
+            statusData.configured ||
+            statusData.mode === 'LIVE_PAYPAL_SANDBOX' ||
+            statusData.executionMode === 'LIVE_PAYPAL_SANDBOX'
+          ) {
+            livePayPalDetected = true;
+          }
+        }
+      } catch {
+        // Continue to /api/health
+      }
+
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          if (
+            data.isLivePayPal ||
+            data.paypalMode === 'LIVE_PAYPAL_SANDBOX' ||
+            data.appId
+          ) {
+            livePayPalDetected = true;
+          }
+          if (data.isLiveGemini) {
+            liveGeminiDetected = true;
+          }
+          if (data.fallbackReason) {
+            fallbackReason = data.fallbackReason;
+          }
+          if (data.agentToolkitTools) {
+            tools = data.agentToolkitTools;
+          }
+        }
+      } catch {
+        // Ignore network errors
+      }
+
+      set((state) => {
+        const isLive = livePayPalDetected || state.isLivePayPalApi;
+        return {
+          isLivePayPalApi: isLive,
+          isLiveGeminiApi: liveGeminiDetected || state.isLiveGeminiApi,
+          apiModeLabel: isLive
             ? 'LIVE PAYPAL SANDBOX'
             : 'SIMULATED FALLBACK',
-          fallbackReason: data.fallbackReason || null,
-          agentToolkitTools: data.agentToolkitTools || [
-            'invoices.create',
-            'orders.capture',
-            'payouts.create',
-          ],
-        });
-      }
+          fallbackReason,
+          agentToolkitTools: tools,
+        };
+      });
     } catch {
       // Ignore network errors on initial check
     }
@@ -412,29 +458,53 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     };
 
     set((state) => {
-      const updatedTasks = recalculateCriticalPathSchedule(state.tasks, true, 4).map((t) =>
-        t.isClientDepositPhase
-          ? {
-              ...t,
-              webhookPayload: {
-                id: `WH-OVERDUE-${Date.now().toString(36).toUpperCase()}`,
-                event_type: 'INVOICING.INVOICE.OVERDUE',
-                summary: 'Client deposit invoice INV2-Z89A-4412-9012-3381 is overdue by 4 days.',
-                resource: {
-                  id: t.invoiceId,
-                  status: 'UNPAID_LATE',
-                  due_amount: { currency_code: 'USD', value: '1500.00' },
-                },
+      const updatedTasks = recalculateCriticalPathSchedule(state.tasks, true, 4).map((t) => {
+        if (t.isClientDepositPhase) {
+          return {
+            ...t,
+            percentDone: 0,
+            escrowStatus: 'UNPAID_LATE' as const,
+            webhookPayload: {
+              id: `WH-OVERDUE-${Date.now().toString(36).toUpperCase()}`,
+              event_type: 'INVOICING.INVOICE.OVERDUE',
+              summary: 'Client deposit invoice INV2-Z89A-4412-9012-3381 is overdue by 4 days.',
+              resource: {
+                id: t.invoiceId,
+                status: 'UNPAID_LATE',
+                due_amount: { currency_code: 'USD', value: '1500.00' },
               },
-            }
-          : t
-      );
+            },
+          };
+        }
+        if (t.id === 'TASK-2') {
+          return {
+            ...t,
+            percentDone: 50,
+            escrowStatus: 'UNPAID_LATE' as const,
+            aiAuditScore: null,
+            aiAuditPassed: null,
+            aiCriteriaMet: [],
+            aiSecurityCheck: null,
+            aiAuditSummary: null,
+            paypalPayoutBatchId: null,
+            paypalSandboxReceiptUrl: null,
+            webhookPayload: null,
+          };
+        }
+        return {
+          ...t,
+          escrowStatus: 'UNPAID_LATE' as const,
+        };
+      });
 
       return {
         tasks: updatedTasks,
         isDepositLate: true,
         isSimulating: false,
         selectedTaskId: 'TASK-1',
+        isLivePayPalApi: state.isLivePayPalApi,
+        apiModeLabel: state.isLivePayPalApi ? 'LIVE PAYPAL SANDBOX' : state.apiModeLabel,
+        latestPayoutReceipt: null,
         reasoningSteps: [step2, step1, ...state.reasoningSteps],
       };
     });
@@ -509,6 +579,8 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           t.isClientDepositPhase
             ? {
                 ...t,
+                percentDone: 100,
+                escrowStatus: 'ESCROW_FUNDED' as const,
                 paypalPayoutBatchId: `ORDER-${deposit.orderId}`,
                 paypalSandboxReceiptUrl: deposit.sandboxReceiptUrl,
                 webhookPayload: deposit.webhookPayload,
@@ -516,12 +588,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
             : t
         );
 
+        const livePayPal = Boolean(deposit.isLiveApi) || state.isLivePayPalApi;
+
         return {
           tasks: restoredTasks,
           isDepositLate: false,
           isSimulating: false,
-          isLivePayPalApi: Boolean(deposit.isLiveApi),
-          apiModeLabel: deposit.isLiveApi ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK',
+          isLivePayPalApi: livePayPal,
+          apiModeLabel: livePayPal ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK',
           selectedTaskId: 'TASK-1',
           expandedRowIds: state.expandedRowIds.includes('TASK-1')
             ? state.expandedRowIds
@@ -667,81 +741,92 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         });
       }
 
-      set((s) => ({
-        isSimulating: false,
-        isLivePayPalApi: payoutResult ? Boolean(payoutResult.isLiveApi) : s.isLivePayPalApi,
-        isLiveGeminiApi: Boolean(auditReport.isLiveGemini),
-        apiModeLabel:
-          payoutResult && payoutResult.isLiveApi
+      set((s) => {
+        const livePayPal = Boolean(
+          (payoutResult && payoutResult.isLiveApi) ||
+          s.isLivePayPalApi ||
+          result.isLivePayPal ||
+          result.executionMode === 'LIVE_PAYPAL_SANDBOX'
+        );
+
+        return {
+          isSimulating: false,
+          isLivePayPalApi: livePayPal,
+          isLiveGeminiApi: Boolean(auditReport.isLiveGemini || s.isLiveGeminiApi),
+          apiModeLabel: livePayPal
             ? 'LIVE PAYPAL SANDBOX'
             : 'SIMULATED FALLBACK',
-        expandedRowIds: s.expandedRowIds.includes(task.id)
-          ? s.expandedRowIds
-          : [task.id, ...s.expandedRowIds],
-        latestPayoutReceipt: payoutResult
-          ? {
-              payoutBatchId: payoutResult.payoutBatchId,
-              senderBatchId: payoutResult.senderBatchId,
-              taskId: task.id,
-              taskName: task.name,
-              contractorName: task.contractorName,
-              receiverEmail: payoutResult.receiverEmail,
-              amount: payoutResult.amount,
-              currency: payoutResult.currency,
-              auditScore: auditReport.score,
-              prUrl: prUrlToAudit,
-              processedAt: payoutResult.processedAt,
-              sandboxReceiptUrl: payoutResult.sandboxReceiptUrl,
-              isLiveApi: payoutResult.isLiveApi,
-              mode: payoutResult.mode,
+          expandedRowIds: s.expandedRowIds.includes(task.id)
+            ? s.expandedRowIds
+            : [task.id, ...s.expandedRowIds],
+          latestPayoutReceipt: payoutResult
+            ? {
+                payoutBatchId: payoutResult.payoutBatchId,
+                senderBatchId: payoutResult.senderBatchId,
+                taskId: task.id,
+                taskName: task.name,
+                contractorName: task.contractorName,
+                receiverEmail: payoutResult.receiverEmail,
+                amount: payoutResult.amount,
+                currency: payoutResult.currency,
+                auditScore: auditReport.score,
+                prUrl: prUrlToAudit,
+                processedAt: payoutResult.processedAt,
+                sandboxReceiptUrl: payoutResult.sandboxReceiptUrl,
+                isLiveApi: payoutResult.isLiveApi,
+                mode: payoutResult.mode,
+              }
+            : s.latestPayoutReceipt,
+          tasks: s.tasks.map((t) => {
+            if (t.id !== task.id) return t;
+            if (payoutResult) {
+              return {
+                ...t,
+                percentDone: 100,
+                escrowStatus: 'PAYOUT_SETTLED',
+                aiAuditScore: auditReport.score,
+                aiAuditPassed: auditReport.passed,
+                aiCriteriaMet: auditReport.criteriaMet,
+                aiSecurityCheck: auditReport.securityCheck,
+                aiAuditSummary: auditReport.summary,
+                paypalPayoutBatchId: payoutResult.payoutBatchId,
+                paypalSandboxReceiptUrl: payoutResult.sandboxReceiptUrl,
+                webhookPayload: payoutResult.webhookPayload,
+              };
             }
-          : s.latestPayoutReceipt,
-        tasks: s.tasks.map((t) => {
-          if (t.id !== task.id) return t;
-          if (payoutResult) {
             return {
               ...t,
-              percentDone: 100,
-              escrowStatus: 'PAYOUT_SETTLED',
+              percentDone: 65,
+              escrowStatus: s.isDepositLate ? 'UNPAID_LATE' : 'AUDIT_REJECTED',
               aiAuditScore: auditReport.score,
-              aiAuditPassed: auditReport.passed,
+              aiAuditPassed: false,
               aiCriteriaMet: auditReport.criteriaMet,
               aiSecurityCheck: auditReport.securityCheck,
-              aiAuditSummary: auditReport.summary,
-              paypalPayoutBatchId: payoutResult.payoutBatchId,
-              paypalSandboxReceiptUrl: payoutResult.sandboxReceiptUrl,
-              webhookPayload: payoutResult.webhookPayload,
+              aiAuditSummary: `${auditReport.summary}`,
+              paypalPayoutBatchId: null,
+              paypalSandboxReceiptUrl: null,
+              webhookPayload: {
+                event_type: 'ESCROW.GUARDRAIL.PAYOUT_BLOCKED',
+                task_id: task.id,
+                audit_score: auditReport.score,
+                required_score: 90,
+                bounty_protected_usd: task.bountyAmount.toFixed(2),
+                security_violation: auditReport.securityCheck,
+                timestamp: new Date().toISOString(),
+              },
             };
-          }
-          return {
-            ...t,
-            escrowStatus: s.isDepositLate ? 'UNPAID_LATE' : 'AUDIT_REJECTED',
-            aiAuditScore: auditReport.score,
-            aiAuditPassed: false,
-            aiCriteriaMet: auditReport.criteriaMet,
-            aiSecurityCheck: auditReport.securityCheck,
-            aiAuditSummary: `${auditReport.summary}`,
-            paypalPayoutBatchId: null,
-            paypalSandboxReceiptUrl: null,
-            webhookPayload: {
-              event_type: 'ESCROW.GUARDRAIL.PAYOUT_BLOCKED',
-              task_id: task.id,
-              audit_score: auditReport.score,
-              required_score: 90,
-              bounty_protected_usd: task.bountyAmount.toFixed(2),
-              security_violation: auditReport.securityCheck,
-              timestamp: new Date().toISOString(),
-            },
-          };
-        }),
-        reasoningSteps: [
-          ...newSteps.reverse(),
-          ...s.reasoningSteps.filter((step) => step.id !== stepFetchId),
-        ],
-      }));
+          }),
+          reasoningSteps: [
+            ...newSteps.reverse(),
+            ...s.reasoningSteps.filter((step) => step.id !== stepFetchId),
+          ],
+        };
+      });
     } catch (err) {
       set((s) => ({
         isSimulating: false,
+        isLivePayPalApi: s.isLivePayPalApi,
+        apiModeLabel: s.isLivePayPalApi ? 'LIVE PAYPAL SANDBOX' : s.apiModeLabel,
         tasks: s.tasks.map((t) =>
           t.id === task.id
             ? { ...t, escrowStatus: s.isDepositLate ? 'UNPAID_LATE' : 'ESCROW_FUNDED' }
@@ -767,7 +852,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   resetSandboxDemo: () =>
-    set({
+    set((s) => ({
       tasks: INITIAL_MILESTONE_TASKS,
       selectedTaskId: 'TASK-2',
       expandedRowIds: ['TASK-2'],
@@ -780,5 +865,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       searchQuery: '',
       lookupModalOpen: false,
       lookupResult: null,
-    }),
+      isLivePayPalApi: s.isLivePayPalApi,
+      apiModeLabel: s.isLivePayPalApi ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK',
+    })),
 }));

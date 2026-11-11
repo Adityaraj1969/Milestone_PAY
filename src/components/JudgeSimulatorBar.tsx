@@ -118,15 +118,19 @@ export const JudgeSimulatorBar: React.FC = () => {
         <div className="flex items-center gap-1.5 font-mono text-[11px]">
           <Radio
             className={`w-3.5 h-3.5 shrink-0 ${
-              isLivePayPalApi ? 'text-emerald-400' : 'text-amber-400'
+              isLivePayPalApi || apiModeLabel === 'LIVE PAYPAL SANDBOX'
+                ? 'text-emerald-400'
+                : 'text-amber-400'
             }`}
           />
           <span
             className={`font-semibold ${
-              isLivePayPalApi ? 'text-emerald-400' : 'text-amber-300'
+              isLivePayPalApi || apiModeLabel === 'LIVE PAYPAL SANDBOX'
+                ? 'text-emerald-400'
+                : 'text-amber-300'
             }`}
           >
-            [MODE: {apiModeLabel}]
+            [MODE: {isLivePayPalApi || apiModeLabel === 'LIVE PAYPAL SANDBOX' ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK'}]
           </span>
         </div>
 

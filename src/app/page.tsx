@@ -7,7 +7,19 @@ import { PayPalLiveReceiptModal } from '../components/PayPalLiveReceiptModal';
 import { useProjectStore } from '../store/useProjectStore';
 
 export default function MilestonePayDashboardPage() {
-  const { runLiveGitHubPrAudit, isSimulating } = useProjectStore();
+  const {
+    runLiveGitHubPrAudit,
+    isSimulating,
+    isLivePayPalApi,
+    apiModeLabel,
+    fetchApiHealthStatus,
+  } = useProjectStore();
+
+  React.useEffect(() => {
+    fetchApiHealthStatus();
+  }, [fetchApiHealthStatus]);
+
+  const isLiveMode = isLivePayPalApi || apiModeLabel === 'LIVE PAYPAL SANDBOX';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -51,8 +63,17 @@ export default function MilestonePayDashboardPage() {
           </a>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
+        {/* Zone 3: Global Live PayPal Mode Badge & primary action */}
         <div className="flex items-center gap-3 shrink-0">
+          <span
+            className={`hidden sm:inline-flex font-mono text-[11px] font-semibold px-2.5 py-1 rounded-md border ${
+              isLiveMode
+                ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400'
+                : 'bg-amber-950/80 border-amber-500/60 text-amber-300'
+            }`}
+          >
+            [MODE: {isLiveMode ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK'}]
+          </span>
           <button
             type="button"
             disabled={isSimulating}

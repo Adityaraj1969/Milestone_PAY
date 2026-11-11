@@ -7,7 +7,7 @@ import {
   fetchGitHubPullRequestDiff,
   auditPullRequestWithGemini,
 } from '../../../lib/github-auditor';
-import { executeContractorPayout } from '../../../lib/paypal';
+import { executeContractorPayout, hasRealPayPalCredentials } from '../../../lib/paypal';
 import { evaluatePayoutGuardrail } from '../../../lib/rules';
 
 export async function handleAuditPrRequest(body: Record<string, unknown>) {
@@ -64,7 +64,8 @@ export async function handleAuditPrRequest(body: Record<string, unknown>) {
     );
   }
 
-  const isLivePayPal = payoutResult ? payoutResult.isLiveApi : false;
+  const livePayPalConfigured = hasRealPayPalCredentials();
+  const isLivePayPal = payoutResult ? payoutResult.isLiveApi : livePayPalConfigured;
 
   return {
     success: true,
@@ -72,10 +73,7 @@ export async function handleAuditPrRequest(body: Record<string, unknown>) {
     isLivePayPal,
     isLiveGemini: auditReport.isLiveGemini,
     isLiveGitHub: diffResult.isLiveGitHub,
-    executionMode:
-      isLivePayPal && auditReport.isLiveGemini
-        ? 'LIVE_PAYPAL_SANDBOX'
-        : 'SIMULATED_FALLBACK',
+    executionMode: isLivePayPal ? 'LIVE_PAYPAL_SANDBOX' : 'SIMULATED_FALLBACK',
     diffResult,
     auditReport,
     guardrail,

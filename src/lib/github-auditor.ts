@@ -210,14 +210,14 @@ export async function fetchGitHubPullRequestDiff(
           ...commonHeaders,
           Accept: 'application/vnd.github.v3+json',
         },
-        signal: AbortSignal.timeout(1800),
+        signal: AbortSignal.timeout(6000),
       }),
       fetch(apiUrl, {
         headers: {
           ...commonHeaders,
           Accept: 'application/vnd.github.v3.diff',
         },
-        signal: AbortSignal.timeout(1800),
+        signal: AbortSignal.timeout(6000),
       }),
     ]);
 
@@ -369,10 +369,14 @@ Provide a strict, objective code audit evaluation. If the code cleanly implement
         });
 
         const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 9000)
+          setTimeout(() => resolve(null), 25000)
         );
 
         const response = await Promise.race([responsePromise, timeoutPromise]);
+        if (!response) {
+          console.warn(`Gemini model ${modelName} timed out after 25s, attempting next candidate model...`);
+          continue;
+        }
         const rawText = (response?.text ?? '').trim();
         if (rawText) {
           const parsed = JSON.parse(rawText) as {

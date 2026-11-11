@@ -115,14 +115,19 @@ export interface WebhookVerificationResult {
 // Store recently created batches in memory so live lookup can return exact metadata
 const recentPayoutsRegistry = new Map<string, PayoutExecutionResult>();
 
+export function cleanEnv(val: string | undefined): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
 export function hasRealPayPalCredentials(): boolean {
-  const clientId = process.env.PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  const clientId = cleanEnv(process.env.PAYPAL_CLIENT_ID);
+  const clientSecret = cleanEnv(process.env.PAYPAL_CLIENT_SECRET);
   return Boolean(
     clientId &&
       clientSecret &&
-      clientId.trim() !== '' &&
-      clientSecret.trim() !== '' &&
+      clientId !== '' &&
+      clientSecret !== '' &&
       clientId !== 'YOUR_PAYPAL_SANDBOX_CLIENT_ID' &&
       clientSecret !== 'YOUR_PAYPAL_SANDBOX_CLIENT_SECRET'
   );
@@ -155,8 +160,8 @@ export function createPayPalAgentToolkitInstance(): {
   }
 
   try {
-    const clientId = process.env.PAYPAL_CLIENT_ID!;
-    const clientSecret = process.env.PAYPAL_CLIENT_SECRET!;
+    const clientId = cleanEnv(process.env.PAYPAL_CLIENT_ID);
+    const clientSecret = cleanEnv(process.env.PAYPAL_CLIENT_SECRET);
     const toolkit = new PayPalAgentToolkit({
       clientId,
       clientSecret,
@@ -252,9 +257,9 @@ export async function getPayPalAccessToken(): Promise<PayPalTokenResponse> {
 
   if (hasRealPayPalCredentials()) {
     try {
-      const credentials = Buffer.from(
-        `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
-      ).toString('base64');
+      const clientId = cleanEnv(process.env.PAYPAL_CLIENT_ID);
+      const clientSecret = cleanEnv(process.env.PAYPAL_CLIENT_SECRET);
+      const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
       const response = await fetch(`${PAYPAL_SANDBOX_BASE_URL}/v1/oauth2/token`, {
         method: 'POST',
@@ -569,6 +574,11 @@ export async function executeContractorPayout(
         };
         recentPayoutsRegistry.set(payoutBatchId, liveResult);
         return liveResult;
+      } else {
+        const errText = await response.text();
+        console.warn(
+          `Live PayPal Payouts API returned HTTP ${response.status}: ${errText}. If 403 NOT_AUTHORIZED, ensure the "Payouts" feature checkbox is enabled on your application at https://developer.paypal.com/dashboard/applications`
+        );
       }
     } catch (err) {
       console.warn('Live PayPal Payouts API error:', err);

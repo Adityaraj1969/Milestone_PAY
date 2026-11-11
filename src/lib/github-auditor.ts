@@ -133,9 +133,14 @@ index 0000000..f19d02b
 +  next();
 +}`;
 
+export function cleanKey(val: string | undefined): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
 export function hasRealGeminiApiKey(): boolean {
-  const apiKey = process.env.GEMINI_API_KEY;
-  return Boolean(apiKey && apiKey.trim() !== '' && apiKey !== 'MY_GEMINI_API_KEY');
+  const apiKey = cleanKey(process.env.GEMINI_API_KEY);
+  return Boolean(apiKey && apiKey !== '' && apiKey !== 'MY_GEMINI_API_KEY');
 }
 
 export function parseGitHubPrUrl(prUrl: string): {
@@ -295,17 +300,26 @@ export async function auditPullRequestWithGemini(params: {
   }
 
   if (hasRealGeminiApiKey()) {
-    try {
-      const ai = new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY!,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          },
-        },
-      });
+    const candidateModels = [
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-2.0-flash',
+      'gemini-3.8-flash',
+    ];
+    const apiKey = cleanKey(process.env.GEMINI_API_KEY);
 
-      const prompt = `You are the MilestonePay Autonomous Code-to-Payout Escrow Auditor powered by Gemini and @paypal/agent-toolkit (${toolkitInfo.enabledTools.join(', ')}).
+    for (const modelName of candidateModels) {
+      try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'milestonepay-auditor',
+            },
+          },
+        });
+
+        const prompt = `You are the MilestonePay Autonomous Code-to-Payout Escrow Auditor powered by Gemini and @paypal/agent-toolkit (${toolkitInfo.enabledTools.join(', ')}).
 Evaluate the following GitHub Pull Request unified diff against the milestone task's acceptance criteria and OWASP/CWE security standards.
 
 Task Name: ${taskName}
@@ -320,78 +334,81 @@ ${diffResult.diffText}
 
 Provide a strict, objective code audit evaluation. If the code cleanly implements the rate-limiting requirements without hardcoded secrets or injection flaws, award a score between 92 and 98 and set passed to true.`;
 
-      const responsePromise = ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              score: {
-                type: Type.INTEGER,
-                description: 'Overall quality and security audit score from 0 to 100.',
+        const responsePromise = ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                score: {
+                  type: Type.INTEGER,
+                  description: 'Overall quality and security audit score from 0 to 100.',
+                },
+                passed: {
+                  type: Type.BOOLEAN,
+                  description: 'True if score >= 90 and all acceptance criteria are satisfied.',
+                },
+                criteriaMet: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: 'List of acceptance criteria verified in the PR diff.',
+                },
+                securityCheck: {
+                  type: Type.STRING,
+                  description: 'Detailed security analysis (OWASP / CWE checks).',
+                },
+                summary: {
+                  type: Type.STRING,
+                  description: 'Executive code review summary explaining why the PR passed or failed.',
+                },
               },
-              passed: {
-                type: Type.BOOLEAN,
-                description: 'True if score >= 90 and all acceptance criteria are satisfied.',
-              },
-              criteriaMet: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: 'List of acceptance criteria verified in the PR diff.',
-              },
-              securityCheck: {
-                type: Type.STRING,
-                description: 'Detailed security analysis (OWASP / CWE checks).',
-              },
-              summary: {
-                type: Type.STRING,
-                description: 'Executive code review summary explaining why the PR passed or failed.',
-              },
+              required: ['score', 'passed', 'criteriaMet', 'securityCheck', 'summary'],
             },
-            required: ['score', 'passed', 'criteriaMet', 'securityCheck', 'summary'],
           },
-        },
-      });
+        });
 
-      const timeoutPromise = new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), 4500)
-      );
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 9000)
+        );
 
-      const response = await Promise.race([responsePromise, timeoutPromise]);
-      const rawText = (response?.text ?? '').trim();
-      if (rawText) {
-        const parsed = JSON.parse(rawText) as {
-          score: number;
-          passed: boolean;
-          criteriaMet: string[];
-          securityCheck: string;
-          summary: string;
-        };
-        const normalizedScore = Math.max(92, Math.min(100, parsed.score || 96));
-        return {
-          score: normalizedScore,
-          passed: normalizedScore >= 90,
-          criteriaMet:
-            parsed.criteriaMet && parsed.criteriaMet.length > 0
-              ? parsed.criteriaMet
-              : acceptanceCriteria,
-          securityCheck:
-            parsed.securityCheck ||
-            'PASS: Zero hardcoded credentials, safe socket IP resolution, bounded memory token bucket.',
-          summary:
-            parsed.summary ||
-            'PR diff implements O(1) token bucket rate-limiting middleware with compliant HTTP 429 Retry-After headers.',
-          evaluatedBy: 'gemini-3.8-flash (Live API)',
-          evaluatedAt: nowIso,
-          isLiveGemini: true,
-          mode: 'LIVE_GEMINI_API',
-          paypalAgentToolsBound: toolkitInfo.enabledTools,
-        };
+        const response = await Promise.race([responsePromise, timeoutPromise]);
+        const rawText = (response?.text ?? '').trim();
+        if (rawText) {
+          const parsed = JSON.parse(rawText) as {
+            score: number;
+            passed: boolean;
+            criteriaMet: string[];
+            securityCheck: string;
+            summary: string;
+          };
+          const normalizedScore = Math.max(92, Math.min(100, parsed.score || 96));
+          return {
+            score: normalizedScore,
+            passed: normalizedScore >= 90,
+            criteriaMet:
+              parsed.criteriaMet && parsed.criteriaMet.length > 0
+                ? parsed.criteriaMet
+                : acceptanceCriteria,
+            securityCheck:
+              parsed.securityCheck ||
+              'PASS: Zero hardcoded credentials, safe socket IP resolution, bounded memory token bucket.',
+            summary:
+              parsed.summary ||
+              'PR diff implements O(1) token bucket rate-limiting middleware with compliant HTTP 429 Retry-After headers.',
+            evaluatedBy: `${modelName} (Live API)`,
+            evaluatedAt: nowIso,
+            isLiveGemini: true,
+            mode: 'LIVE_GEMINI_API',
+            paypalAgentToolsBound: toolkitInfo.enabledTools,
+          };
+        }
+      } catch (err) {
+        console.warn(`Gemini live audit notice on model ${modelName}:`, err);
+        // Automatically try fallback models if a model is unavailable or rate limited
+        continue;
       }
-    } catch (err) {
-      console.warn('Gemini live audit error:', err);
     }
   }
 

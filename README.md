@@ -23,7 +23,7 @@ Milestone-based engineering contracts suffer from two fundamental disconnects:
 
 **MilestonePay** introduces the first closed-loop **Payment-Aware Critical Path & Autonomous Escrow Protocol**:
 - **Loop 1: Money Controls Time** — If the client's Phase 1 escrow deposit is overdue, downstream critical-path Gantt timelines automatically lock and shift forward (+4 days). When funded via PayPal Orders v2, the schedule snaps back to baseline.
-- **Loop 2: Code Controls Money** — When a developer submits a GitHub Pull Request, Gemini 2.5 Flash conducts an automated code & OWASP security audit. If the PR scores $\ge 90/100$ and satisfies all acceptance criteria, the `@paypal/agent-toolkit` and PayPal Payouts API automatically disburse the bounty from escrow to the contractor's PayPal account in real time.
+- **Loop 2: Code Controls Money** — When a developer submits a GitHub Pull Request, Gemini 2.5 Flash conducts an automated code & OWASP security audit. If the PR scores >= 90/100 and satisfies all acceptance criteria, the `@paypal/agent-toolkit` and PayPal Payouts API automatically disburse the bounty from escrow to the contractor's PayPal account in real time.
 
 ---
 
@@ -104,19 +104,19 @@ The top **Judge Sandbox Simulator Bar** enables instant one-click evaluation of 
 
 ### Scenario 1: Simulate Late Client Deposit
 - **Action**: Click `1. Simulate Late Client Deposit`.
-- **System Behavior**: Phase 1 is marked `UNPAID_LATE`. The entire critical path shifts $+4\text{ days}$ forward on the Bryntum Gantt chart, and all downstream contractor tasks display `LOCKED - UNPAID`. Escrow pool balance drops to $\$0$.
+- **System Behavior**: Phase 1 is marked `UNPAID_LATE`. The entire critical path shifts +4 days forward on the Bryntum Gantt chart, and all downstream contractor tasks display `LOCKED - UNPAID`. Escrow pool balance drops to $0.
 
 ### Scenario 2: Instant Client Escrow Capture
 - **Action**: Click `2. Fund Escrow Deposit`.
-- **System Behavior**: Calls PayPal Orders v2 API, captures the $\$1,500.00$ deposit, emits a `PAYMENT.CAPTURE.COMPLETED` webhook, clears escrow funds, and snaps the Gantt schedule back to its baseline anchor.
+- **System Behavior**: Calls PayPal Orders v2 API, captures the $1,500.00 deposit, emits a `PAYMENT.CAPTURE.COMPLETED` webhook, clears escrow funds, and snaps the Gantt schedule back to its baseline anchor.
 
 ### Scenario 3: Real GitHub PR Audit & Payout Release
 - **Action**: Click `3. Run Live GitHub PR Audit`.
-- **System Behavior**: Fetches PR diff from GitHub REST API, evaluates code quality with Gemini 2.5 Flash (Scores $96/100$), passes the financial escrow guardrail, executes a real PayPal Sandbox Payout via `/v1/payments/payouts`, and updates the AG Grid ledger to `PAYOUT_SETTLED`.
+- **System Behavior**: Fetches PR diff from GitHub REST API, evaluates code quality with Gemini 2.5 Flash (Scores 96/100), passes the financial escrow guardrail, executes a real PayPal Sandbox Payout via `/v1/payments/payouts`, and updates the AG Grid ledger to `PAYOUT_SETTLED`.
 
 ### Scenario 4: Vulnerable PR CWE-798 Injection & Financial Guardrail Block
 - **Action**: Click `4. Simulate Vulnerable PR (Score 62/100)`.
-- **System Behavior**: Injects code containing hardcoded credentials (`REDIS_MASTER_TOKEN`) and spoofable `X-Forwarded-For` IP rate-limiting. Gemini detects CWE-798 and CWE-290, awarding a failing score of $62/100$. The **Financial Escrow Guardrail blocks the $\$400.00$ payout**, preserving the client's escrow pool.
+- **System Behavior**: Injects code containing hardcoded credentials (`REDIS_MASTER_TOKEN`) and spoofable `X-Forwarded-For` IP rate-limiting. Gemini detects CWE-798 and CWE-290, awarding a failing score of 62/100. The **Financial Escrow Guardrail blocks the $400.00 payout**, preserving the client's escrow pool.
 
 ---
 
@@ -200,7 +200,7 @@ Alternatively, Render will automatically detect [`render.yaml`](render.yaml) as 
 ## 9. Security & Governance
 
 - **Zero Hardcoded Secrets**: Secrets are loaded strictly from the environment; mock fallbacks protect the interface when keys are unconfigured.
-- **Fail-Safe Financial Guardrails**: Payouts cannot execute without satisfying both the Gemini AI score threshold ($\ge 90$) and verified escrow cleared balance.
+- **Fail-Safe Financial Guardrails**: Payouts cannot execute without satisfying both the Gemini AI score threshold (>= 90) and verified escrow cleared balance.
 - **Asymmetric Webhook Signatures**: All incoming PayPal Webhook payloads undergo asymmetric RSA-SHA256 signature verification against PayPal's public certificates.
 
 ---

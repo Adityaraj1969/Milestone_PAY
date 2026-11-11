@@ -42,13 +42,13 @@ LOOP 1: PAYMENT-AWARE CRITICAL PATH (Money Controls Time)
          │                               Bryntum Gantt Critical Path shifts +4 days forward
          │                               (All downstream milestone task bars locked in red)
          │
-         └── (Scenario 2: PayPal Deposit) ──► POST /v2/checkout/orders (Capture $1,500)
+         └── (Scenario 2: PayPal Deposit) ──► POST /v2/checkout/orders (Capture Client Deposit)
                                                 │
                                                 ▼
                                          Webhook PAYMENT.CAPTURE.COMPLETED
                                                 │
                                                 ▼
-                                         Escrow Pool Funded ($1,500.00 USD)
+                                         Escrow Pool Cleared & Funded
                                          Bryntum Gantt snaps to baseline schedule (Green)
 
 
@@ -71,7 +71,7 @@ LOOP 2: FINANCIAL ESCROW GUARDRAIL & CODE-TO-PAYOUT (Code Controls Money)
                       ▼                                                           ▼
          FINANCIAL ESCROW GUARDRAIL                                  FINANCIAL ESCROW GUARDRAIL
              - Payout BLOCKED                                            - Check Cleared Escrow Pool
-             - Escrow balance untouched                                  - Disburse Bounty ($400)
+             - Escrow balance untouched                                  - Disburse Bounty
              - Reason logged to AG Grid                                           │
                                                                                   ▼
                                                                      @paypal/agent-toolkit &
@@ -106,12 +106,12 @@ The top **Judge Sandbox Simulator Bar** enables instant one-click evaluation of 
 - **Action**: Click `1. Simulate Late Client Deposit`.
 - **System Behavior**: Phase 1 is marked `UNPAID_LATE`. The entire critical path shifts $+4\text{ days}$ forward on the Bryntum Gantt chart, and all downstream contractor tasks display `LOCKED - UNPAID`. Escrow pool balance drops to $\$0$.
 
-### Scenario 2: Instant Client Escrow Capture ($1,500)
-- **Action**: Click `2. Fund Escrow ($1,500 Deposit)`.
+### Scenario 2: Instant Client Escrow Capture
+- **Action**: Click `2. Fund Escrow Deposit`.
 - **System Behavior**: Calls PayPal Orders v2 API, captures the $\$1,500.00$ deposit, emits a `PAYMENT.CAPTURE.COMPLETED` webhook, clears escrow funds, and snaps the Gantt schedule back to its baseline anchor.
 
-### Scenario 3: Real GitHub PR Audit & Payout Release ($400)
-- **Action**: Click `3. Run Live GitHub PR Audit ($400)`.
+### Scenario 3: Real GitHub PR Audit & Payout Release
+- **Action**: Click `3. Run Live GitHub PR Audit`.
 - **System Behavior**: Fetches PR diff from GitHub REST API, evaluates code quality with Gemini 2.5 Flash (Scores $96/100$), passes the financial escrow guardrail, executes a real PayPal Sandbox Payout via `/v1/payments/payouts`, and updates the AG Grid ledger to `PAYOUT_SETTLED`.
 
 ### Scenario 4: Vulnerable PR CWE-798 Injection & Financial Guardrail Block

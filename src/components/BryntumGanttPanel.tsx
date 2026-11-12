@@ -155,7 +155,10 @@ export const BryntumGanttPanel: React.FC = () => {
       return {
         barBg: 'bg-red-950/90 border-red-400/80 text-red-100',
         progressBg: 'bg-red-500/40',
-        statusLabel: 'GUARDRAIL BLOCKED (62/100)',
+        statusLabel:
+          task.aiAuditScore !== null && task.aiAuditScore !== undefined
+            ? `GUARDRAIL BLOCKED (${task.aiAuditScore}/100)`
+            : 'GUARDRAIL BLOCKED',
         statusColor: 'text-red-300',
         Icon: Lock,
       };

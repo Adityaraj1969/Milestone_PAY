@@ -13,7 +13,7 @@ export interface AgentReasoningStep {
   stage: 'GITHUB_FETCH' | 'GEMINI_AUDIT' | 'ESCROW_GUARDRAIL' | 'PAYPAL_API' | 'WEBHOOK_SYNC';
   title: string;
   detail: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  status: 'pending' | 'running' | 'completed' | 'blocked' | 'warning' | 'error';
   codeSnippet?: string;
 }
 
@@ -469,7 +469,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       title: 'Critical Path Locked — Schedule Shifted +4 Days',
       detail:
         'Phase 1 locked in crimson (UNPAID_LATE). Bryntum Gantt engine automatically pushed TASK-2, TASK-3, and TASK-4 forward by +4 calendar days. Projected delivery recalculated to 2026-11-21.',
-      status: 'error',
+      status: 'warning',
     };
 
     set((state) => {
@@ -491,24 +491,20 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
             },
           };
         }
-        if (t.id === 'TASK-2') {
-          return {
-            ...t,
-            percentDone: 50,
-            escrowStatus: 'UNPAID_LATE' as const,
-            aiAuditScore: null,
-            aiAuditPassed: null,
-            aiCriteriaMet: [],
-            aiSecurityCheck: null,
-            aiAuditSummary: null,
-            paypalPayoutBatchId: null,
-            paypalSandboxReceiptUrl: null,
-            webhookPayload: null,
-          };
-        }
+        // Downstream tasks: reset any previous audit/payout states cleanly back to baseline
+        const baselinePercent = t.id === 'TASK-2' ? 65 : t.id === 'TASK-3' ? 30 : 10;
         return {
           ...t,
+          percentDone: baselinePercent,
           escrowStatus: 'UNPAID_LATE' as const,
+          aiAuditScore: null,
+          aiAuditPassed: null,
+          aiCriteriaMet: [],
+          aiSecurityCheck: null,
+          aiAuditSummary: null,
+          paypalPayoutBatchId: null,
+          paypalSandboxReceiptUrl: null,
+          webhookPayload: null,
         };
       });
 
@@ -727,7 +723,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           auditReport.passed ? 'PASSED' : 'REJECTED'
         }) [${auditReport.mode}]`,
         detail: `${auditReport.summary} Security Check: ${auditReport.securityCheck}`,
-        status: auditReport.passed ? 'completed' : 'error',
+        status: auditReport.passed ? 'completed' : 'blocked',
         codeSnippet: JSON.stringify(
           {
             score: auditReport.score,
@@ -748,9 +744,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         stage: 'ESCROW_GUARDRAIL',
         title: guardrail.canExecutePayout
           ? 'Financial Escrow Guardrail: PASSED'
-          : 'Financial Escrow Guardrail: PAYOUT BLOCKED ($400.00 Protected)',
-        detail: guardrail.reason,
-        status: guardrail.canExecutePayout ? 'completed' : 'error',
+          : `Financial Escrow Guardrail: PAYOUT BLOCKED ($${bountyToAudit.toFixed(2)} Protected)`,
+        detail: guardrail.canExecutePayout
+          ? guardrail.reason
+          : `Guardrail enforced: ${guardrail.reason} $${bountyToAudit.toFixed(2)} USD retained safely in escrow.`,
+        status: guardrail.canExecutePayout ? 'completed' : 'blocked',
       });
 
       if (payoutResult) {

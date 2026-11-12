@@ -19,6 +19,7 @@ import {
   Search,
   CheckCircle2,
   AlertCircle,
+  ShieldAlert,
   Lock,
   Unlock,
   Terminal,
@@ -369,7 +370,7 @@ export const AgGridLedgerPanel: React.FC = () => {
               return (
                 <div className="flex items-center h-full">
                   <span className="inline-flex items-center gap-1 text-red-400 font-semibold text-[11px] leading-none">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
                     <span>GUARDRAIL_BLOCKED</span>
                   </span>
                 </div>

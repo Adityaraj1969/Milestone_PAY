@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   AlertCircle,
+  AlertTriangle,
   Loader2,
   Send,
   Receipt,
@@ -232,23 +233,45 @@ export const AgentAuditDrawer: React.FC = () => {
         <div className="space-y-3">
           {reasoningSteps.map((step) => {
             const isError = step.status === 'error';
+            const isBlocked = step.status === 'blocked';
+            const isWarning = step.status === 'warning';
             const isRunning = step.status === 'running';
 
             return (
               <div
                 key={step.id}
-                className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1.5 text-xs"
+                className={`p-3 rounded-lg border space-y-1.5 text-xs transition-colors ${
+                  isBlocked
+                    ? 'bg-amber-950/20 border-amber-500/40'
+                    : isWarning
+                    ? 'bg-amber-950/15 border-amber-500/30'
+                    : isError
+                    ? 'bg-red-950/20 border-red-500/40'
+                    : 'bg-slate-950/80 border-slate-800'
+                }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+                  <div className="flex items-center gap-1.5 font-semibold">
                     {isRunning ? (
                       <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
+                    ) : isBlocked ? (
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    ) : isWarning ? (
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     ) : isError ? (
                       <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                     ) : (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     )}
-                    <span className={isError ? 'text-red-300' : 'text-slate-100'}>
+                    <span
+                      className={
+                        isBlocked || isWarning
+                          ? 'text-amber-200'
+                          : isError
+                          ? 'text-red-300'
+                          : 'text-slate-100'
+                      }
+                    >
                       {step.title}
                     </span>
                   </div>

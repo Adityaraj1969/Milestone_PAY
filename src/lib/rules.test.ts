@@ -54,12 +54,13 @@ const mockTasks: MilestoneTask[] = [
     bountyAmount: 400,
     escrowStatus: 'ESCROW_FUNDED',
     invoiceId: 'INV2-Z89A-4412-9012-3381',
-    githubPrUrl: 'https://github.com/express-rate-limit/express-rate-limit/pull/1',
+    githubPrUrl: 'https://github.com/Adityaraj1969/MilestonePay/pull/1',
     prNumber: 1,
     acceptanceCriteria: [
-      'Implement sliding window or token bucket rate limiter middleware',
-      'Return HTTP 429 Too Many Requests with Retry-After header',
-      'No hardcoded credentials or unvalidated header injection',
+      'Express rate-limiting middleware backed by a Redis token bucket',
+      'Return HTTP 429 Too Many Requests with standard Retry-After & X-RateLimit-* headers',
+      'OWASP API4:2023 & CWE-798 security compliance with zero hardcoded secrets',
+      'Graceful handling of Redis connection failure without crashing server',
     ],
     aiAuditScore: null,
     aiAuditPassed: null,
@@ -170,22 +171,22 @@ test('Clean PR audit and Vulnerable PR fetch preserve LIVE_GEMINI_API and LIVE_G
   const { fetchGitHubPullRequestDiff, auditPullRequestWithGemini, CLEAN_PR_ACCEPTANCE_CRITERIA } =
     await import('./github-auditor');
   const diffResult = await fetchGitHubPullRequestDiff(
-    'https://github.com/express-rate-limit/express-rate-limit/pull/1',
+    'https://github.com/Adityaraj1969/MilestonePay/pull/1',
     false
   );
-  assert.equal(diffResult.owner, 'express-rate-limit');
-  assert.equal(diffResult.repo, 'express-rate-limit');
+  assert.equal(diffResult.owner, 'Adityaraj1969');
+  assert.equal(diffResult.repo, 'MilestonePay');
 
   const vulnDiffResult = await fetchGitHubPullRequestDiff(
-    'https://github.com/express-rate-limit/express-rate-limit/pull/2',
+    'https://github.com/Adityaraj1969/MilestonePay/pull/2',
     true
   );
-  assert.equal(vulnDiffResult.owner, 'express-rate-limit');
+  assert.equal(vulnDiffResult.owner, 'Adityaraj1969');
   assert.equal(vulnDiffResult.prNumber, 2);
   assert.equal(vulnDiffResult.diffText.includes('REDIS_MASTER_TOKEN'), true);
 
   const report = await auditPullRequestWithGemini({
-    taskName: 'Build Express Rate-Limiting Middleware & HTTP 429 Throttling',
+    taskName: 'Build Express Rate-Limiting Middleware & Redis Token Bucket',
     acceptanceCriteria: CLEAN_PR_ACCEPTANCE_CRITERIA,
     diffResult,
     simulateRejection: false,

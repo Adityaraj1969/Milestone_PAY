@@ -13,15 +13,16 @@ import { evaluatePayoutGuardrail } from '../../../lib/rules';
 export async function handleAuditPrRequest(body: Record<string, unknown>) {
   const {
     taskId = 'TASK-2',
-    taskName = 'Build Rate-Limiting Middleware & Redis Token Bucket',
-    prUrl = 'https://github.com/express-rate-limit/express-rate-limit/pull/1',
+    taskName = 'Build Express Rate-Limiting Middleware & Redis Token Bucket',
+    prUrl = 'https://github.com/Adityaraj1969/MilestonePay/pull/1',
     prNumber = 1,
     bountyAmount = 400,
     receiverEmail = 'contractor-dev@personal.example.com',
     acceptanceCriteria = [
-      'Configurable rate-limiting response options and HTTP 429 throttling handler',
-      'Automated mocha/supertest unit test assertions verifying rate-limit response behavior',
+      'Express rate-limiting middleware backed by a Redis token bucket',
+      'Return HTTP 429 Too Many Requests with standard Retry-After & X-RateLimit-* headers',
       'OWASP API4:2023 & CWE-798 security compliance with zero hardcoded secrets',
+      'Graceful handling of Redis connection failure without crashing server',
     ],
     escrowBalance = 1500,
     alreadySettled = false,

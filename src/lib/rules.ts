@@ -105,12 +105,11 @@ export function recalculateCriticalPathSchedule(
     return {
       ...task,
       startDate: newStart,
-      escrowStatus:
-        task.escrowStatus === 'PAYOUT_SETTLED'
-          ? 'PAYOUT_SETTLED'
-          : isDepositLate
-          ? 'UNPAID_LATE'
-          : 'ESCROW_FUNDED',
+      escrowStatus: isDepositLate
+        ? 'UNPAID_LATE'
+        : task.escrowStatus === 'UNPAID_LATE'
+        ? 'ESCROW_FUNDED'
+        : task.escrowStatus,
     };
   });
 }

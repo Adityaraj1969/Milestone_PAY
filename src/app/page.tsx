@@ -77,7 +77,13 @@ export default function MilestonePayDashboardPage() {
           <button
             type="button"
             disabled={isSimulating}
-            onClick={() => runLiveGitHubPrAudit('TASK-2')}
+            onClick={() =>
+              runLiveGitHubPrAudit(
+                'TASK-2',
+                'https://github.com/Adityaraj1969/MilestonePay/pull/1',
+                false
+              )
+            }
             className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             Audit Sample PR #1

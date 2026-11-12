@@ -138,8 +138,26 @@ export const AgentAuditDrawer: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">gemini_score:</span>
-              <span className="text-red-400 font-semibold tabular-nums">
-                {latestBlockedAudit.auditScore}/100 (REJECTED &lt; {latestBlockedAudit.requiredScore})
+              <span
+                className={`font-semibold tabular-nums ${
+                  latestBlockedAudit.auditScore >= latestBlockedAudit.requiredScore
+                    ? 'text-emerald-400'
+                    : 'text-red-400'
+                }`}
+              >
+                {latestBlockedAudit.auditScore}/100 (
+                {latestBlockedAudit.auditScore >= latestBlockedAudit.requiredScore
+                  ? `PASSED \u2265 ${latestBlockedAudit.requiredScore}`
+                  : `REJECTED < ${latestBlockedAudit.requiredScore}`}
+                )
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">block_reason:</span>
+              <span className="text-amber-300 font-semibold truncate max-w-[200px]">
+                {latestBlockedAudit.auditScore < latestBlockedAudit.requiredScore
+                  ? 'CWE Security Violation'
+                  : 'Insufficient Escrow Balance'}
               </span>
             </div>
           </div>

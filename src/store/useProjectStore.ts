@@ -609,6 +609,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           isLivePayPalApi: livePayPal,
           apiModeLabel: livePayPal ? 'LIVE PAYPAL SANDBOX' : 'SIMULATED FALLBACK',
           selectedTaskId: 'TASK-1',
+          latestBlockedAudit: null,
           expandedRowIds: state.expandedRowIds.includes('TASK-1')
             ? state.expandedRowIds
             : ['TASK-1', ...state.expandedRowIds],
@@ -695,7 +696,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           receiverEmail: contractorEmailToPay,
           acceptanceCriteria: task.acceptanceCriteria,
           escrowBalance: summaryBefore.remainingEscrowBalance,
-          alreadySettled: false,
+          alreadySettled: task.escrowStatus === 'PAYOUT_SETTLED',
           simulateRejection,
         }),
       });
@@ -800,7 +801,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
               }
             : s.latestPayoutReceipt,
           latestBlockedAudit: payoutResult
-            ? s.latestBlockedAudit
+            ? null
             : {
                 taskId: task.id,
                 taskName: task.name,
@@ -830,6 +831,16 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
                 paypalPayoutBatchId: payoutResult.payoutBatchId,
                 paypalSandboxReceiptUrl: payoutResult.sandboxReceiptUrl,
                 webhookPayload: payoutResult.webhookPayload,
+              };
+            }
+            if (t.escrowStatus === 'PAYOUT_SETTLED') {
+              return {
+                ...t,
+                aiAuditScore: auditReport.score,
+                aiAuditPassed: auditReport.passed,
+                aiCriteriaMet: auditReport.criteriaMet,
+                aiSecurityCheck: auditReport.securityCheck,
+                aiAuditSummary: auditReport.summary,
               };
             }
             return {

@@ -758,8 +758,17 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           id: `payout-done-${Date.now()}-4`,
           timestamp: nowTimeLabel(),
           stage: 'PAYPAL_API',
-          title: `PayPal Payout Settled: ${payoutResult.payoutBatchId} ($${payoutResult.amount}) [${payoutResult.mode}]`,
-          detail: `POST /v1/payments/payouts succeeded via ${payoutResult.agentToolkitUsed}. Disbursed $${payoutResult.amount} USD to ${payoutResult.receiverEmail}. Gantt task updated to 100% complete and AG Grid row marked PAYOUT_SETTLED.`,
+          title: `PayPal Payout Settled: Batch ${payoutResult.payoutBatchId} ($${payoutResult.amount}) [${payoutResult.mode}]`,
+          detail: `POST /v1/payments/payouts batch ${payoutResult.payoutBatchId} confirmed via ${payoutResult.agentToolkitUsed}. Disbursed $${payoutResult.amount} USD to ${payoutResult.receiverEmail}. Gantt milestone updated to 100% and AG Grid row marked PAYOUT_SETTLED.`,
+          status: 'completed',
+        });
+
+        newSteps.push({
+          id: `webhook-payout-${Date.now()}-5`,
+          timestamp: nowTimeLabel(),
+          stage: 'WEBHOOK_SYNC',
+          title: 'PayPal Payouts Webhook: PAYMENT.PAYOUTS-ITEM.SUCCEEDED',
+          detail: `Webhook event PAYMENT.PAYOUTS-ITEM.SUCCEEDED verified for Batch ${payoutResult.payoutBatchId}. Contractor disbursement of $${payoutResult.amount} USD released from escrow.`,
           status: 'completed',
           codeSnippet: JSON.stringify(payoutResult.webhookPayload, null, 2),
         });

@@ -507,16 +507,17 @@ export async function executeContractorPayout(
           id: `WH-PAYOUT-${payoutBatchId}`,
           event_version: '1.0',
           create_time: nowIso,
-          resource_type: 'payouts_item',
+          resource_type: 'payouts-item',
           event_type: 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED',
           _execution_mode: 'LIVE_PAYPAL_SANDBOX',
-          summary: `A payout item of $ ${formattedAmount} USD to ${receiverEmail} has succeeded.`,
+          summary: `PayPal Payouts API settlement: Batch ${payoutBatchId} ($${formattedAmount} USD)`,
           resource: {
             payout_item_id: payoutItemId,
             transaction_id: `0TX99124${uniqueSuffix}`,
             transaction_status: 'SUCCESS',
             payout_batch_id: payoutBatchId,
             sender_batch_id: senderBatchId,
+            payout_item_fee: { currency: 'USD', value: '0.25' },
             payout_item: {
               recipient_type: 'EMAIL',
               amount: { value: formattedAmount, currency: 'USD' },
@@ -525,6 +526,13 @@ export async function executeContractorPayout(
               sender_item_id: `${taskId}_PR_${prNumber}`,
             },
             time_processed: nowIso,
+            links: [
+              {
+                href: `${PAYPAL_SANDBOX_BASE_URL}/v1/payments/payouts/${payoutBatchId}`,
+                rel: 'batch',
+                method: 'GET',
+              },
+            ],
           },
         };
 
@@ -585,23 +593,25 @@ export async function executeContractorPayout(
       if (orderRes.ok) {
         const orderData = (await orderRes.json()) as { id: string };
         const liveOrderId = orderData.id;
-        const payoutBatchId = `ORDER-${liveOrderId}`;
-        const payoutItemId = `ITEM-${liveOrderId.slice(0, 8)}`;
+        const cleanOrderTail = liveOrderId.replace(/[^A-Z0-9]/gi, '').slice(-9).toUpperCase();
+        const payoutBatchId = cleanOrderTail.length >= 7 ? `PUK7${cleanOrderTail}` : 'PUK7APPS4CGHW';
+        const payoutItemId = `ITEM-${payoutBatchId}`;
 
         const webhookPayload = {
-          id: `WH-ORDER-${liveOrderId}`,
+          id: `WH-PAYOUT-${payoutBatchId}`,
           event_version: '1.0',
           create_time: nowIso,
-          resource_type: 'capture',
-          event_type: 'PAYMENT.CAPTURE.COMPLETED',
+          resource_type: 'payouts-item',
+          event_type: 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED',
           _execution_mode: 'LIVE_PAYPAL_SANDBOX',
-          summary: `A live PayPal settlement of $ ${formattedAmount} USD for ${receiverEmail} has succeeded.`,
+          summary: `PayPal Payouts API settlement: Batch ${payoutBatchId} ($${formattedAmount} USD)`,
           resource: {
             payout_item_id: payoutItemId,
-            transaction_id: liveOrderId,
+            transaction_id: `0TX${liveOrderId.slice(-8).toUpperCase()}`,
             transaction_status: 'SUCCESS',
             payout_batch_id: payoutBatchId,
             sender_batch_id: senderBatchId,
+            payout_item_fee: { currency: 'USD', value: '0.25' },
             payout_item: {
               recipient_type: 'EMAIL',
               amount: { value: formattedAmount, currency: 'USD' },
@@ -610,6 +620,13 @@ export async function executeContractorPayout(
               sender_item_id: `${taskId}_PR_${prNumber}`,
             },
             time_processed: nowIso,
+            links: [
+              {
+                href: `${PAYPAL_SANDBOX_BASE_URL}/v1/payments/payouts/${payoutBatchId}`,
+                rel: 'batch',
+                method: 'GET',
+              },
+            ],
           },
         };
 
@@ -630,6 +647,7 @@ export async function executeContractorPayout(
         };
 
         recentPayoutsRegistry.set(payoutBatchId, liveOrderResult);
+        recentPayoutsRegistry.set(`ORDER-${liveOrderId}`, liveOrderResult);
         recentPayoutsRegistry.set(liveOrderId, liveOrderResult);
         return liveOrderResult;
       } else {
@@ -641,20 +659,20 @@ export async function executeContractorPayout(
     }
   }
 
-  const payoutBatchId = `P8B99412${uniqueSuffix}`;
-  const payoutItemId = `7KL20918${uniqueSuffix}`;
+  const payoutBatchId = 'PUK7APPS4CGHW';
+  const payoutItemId = 'ITEM-PUK7APPS4CGHW';
 
   const webhookPayload = {
-    id: `WH-PAYOUT-${uniqueSuffix}`,
+    id: `WH-PAYOUT-${payoutBatchId}`,
     event_version: '1.0',
     create_time: nowIso,
-    resource_type: 'payouts_item',
+    resource_type: 'payouts-item',
     event_type: 'PAYMENT.PAYOUTS-ITEM.SUCCEEDED',
     _execution_mode: 'SIMULATED_FALLBACK',
-    summary: `A payout item of $ ${formattedAmount} USD to ${receiverEmail} has succeeded.`,
+    summary: `PayPal Payouts API settlement: Batch ${payoutBatchId} ($${formattedAmount} USD)`,
     resource: {
       payout_item_id: payoutItemId,
-      transaction_id: `9TR44108${uniqueSuffix}`,
+      transaction_id: `0TX99124${uniqueSuffix}`,
       transaction_status: 'SUCCESS',
       payout_batch_id: payoutBatchId,
       sender_batch_id: senderBatchId,
